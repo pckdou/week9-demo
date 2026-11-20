@@ -17,5 +17,8 @@
   "files": [
     "src"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "^4.17.15"
+  }
 }
