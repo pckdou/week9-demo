@@ -1,0 +1,19 @@
+﻿{
+  "name": "@pckdou/week9-demo",
+  "version": "1.0.0",
+  "description": "Week 9 demo package",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node -e \"const {hello}=require('./src');if(hello('A')!=='Hello, A!')process.exit(1);console.log('ok')\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pckdou/week9-demo.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": ["src"],
+  "license": "MIT"
+}

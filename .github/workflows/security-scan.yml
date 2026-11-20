@@ -1,0 +1,101 @@
+﻿name: Security scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 0 * * 1"   # 매주 월요일 09:00 KST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  security-events: write
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+
+      - name: Run npm audit
+        id: audit
+        run: |
+          npm audit --json > audit.json || true
+          npm audit > audit.txt || true
+          HIGH=$(jq '(.metadata.vulnerabilities.high // 0) + (.metadata.vulnerabilities.critical // 0)' audit.json)
+          echo "high_critical=$HIGH" >> "$GITHUB_OUTPUT"
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: |
+            audit.json
+            audit.txt
+
+      - name: Create or update issue
+        if: steps.audit.outputs.high_critical != '0' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create security-audit --color B60205 \
+            --description "Automated security audit" --force
+          {
+            echo "## npm audit 결과 ($(date -u +%F))"
+            echo
+            echo "- High+Critical: ${{ steps.audit.outputs.high_critical }}"
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo '```'
+            head -c 50000 audit.txt
+            echo '```'
+          } > body.md
+
+          EXISTING=$(gh issue list --label security-audit --state open \
+            --json number -q '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body-file body.md
+          else
+            gh issue create --title "🔒 npm audit: 취약점 발견" \
+              --body-file body.md --label security-audit
+          fi
+
+      - name: Fail on high severity (PR gate)
+        if: github.event_name == 'pull_request' && steps.audit.outputs.high_critical != '0'
+        run: exit 1
+
+  snyk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+
+      - name: Snyk test
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --sarif-file-output=snyk.sarif
+
+      - name: Upload SARIF to Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('snyk.sarif') != ''
+        with:
+          sarif_file: snyk.sarif
+
+      - name: Upload Snyk report
+        if: always() && hashFiles('snyk.sarif') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-report
+          path: snyk.sarif
