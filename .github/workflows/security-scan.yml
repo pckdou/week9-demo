@@ -1,4 +1,4 @@
-﻿name: Security scan
+name: Security scan
 
 on:
   push:
@@ -17,8 +17,8 @@ jobs:
   npm-audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
       - run: npm ci
@@ -32,7 +32,7 @@ jobs:
           echo "high_critical=$HIGH" >> "$GITHUB_OUTPUT"
 
       - name: Upload report artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: npm-audit-report
           path: |
@@ -73,8 +73,8 @@ jobs:
   snyk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
       - run: npm ci
@@ -95,7 +95,7 @@ jobs:
 
       - name: Upload Snyk report
         if: always() && hashFiles('snyk.sarif') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: snyk-report
           path: snyk.sarif
